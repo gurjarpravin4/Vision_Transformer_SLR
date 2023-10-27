@@ -15,7 +15,6 @@ if __name__ == '__main__':
     # get the number of CPUs available
     NUM_WORKERS = os.cpu_count()
 
-
     # Create DataLoader Function for loading the training and testing datasets
     def create_dataloaders(
             train_dir: str,
@@ -49,7 +48,7 @@ if __name__ == '__main__':
         return train_dataloader, test_dataloader, class_names
 
 
-    IMG_SIZE = 300
+    IMG_SIZE = 288
 
     # Create transforms pipeline manually
     manual_transforms = transforms.Compose([
@@ -79,3 +78,49 @@ if __name__ == '__main__':
     plt.title(class_names[label])
     plt.axis(False)
     plt.show()
+
+
+    # 1. Create a class which subclasses the nn.Module
+    class PatchEmbedding(nn.Module):
+        """
+        Turns a 2-D input image into a 1-D sequence learnable embedding vector
+        Args:
+            in_channels (int): No of color channels for input image default=3 (RGB)
+            patch_size (int): Size of a single patch default=16
+            embedding_dim (int): Size of embedding to turn image into default=768
+        """
+
+        # 2. Initialize the class with appropriate variables
+        def __init__(
+                self,
+                in_channels: int = 3,
+                patch_size: int = 16,
+                embedding_dim: int = 768
+        ):
+            super.__init__()
+
+            # 3. Create a layer to turn image into patches
+            self.patcher = nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=embedding_dim,
+                kernel_size=patch_size,
+                stride=patch_size,
+                padding=0
+            )
+
+            # 4. Create a layer to flatten the patch maps into a single dimension
+            self.flatten = nn.Flatten(start_dim=2, end_dim=3)
+            # Only flatten the feature map dimensions into a single vector
+
+        # 5. Define forward method
+        def forward(self, x):
+            # Create assertion to check that inputs are of correct shape
+            image_resolution = x.shape[-1]
+            assert image_resolution % patch_size == 0, (f"input must be divisible by patch size, "
+                                                        f"image shape: {image_resolution}, patch size: {patch_size}")
+            # Perform forward pass
+            x_patched = self.patcher(x)
+            x_flattened = self.flatten(x_patched)
+
+            # 6. Make sure output shape has right order
+            return x_flattened.permute(0, 2, 1)
