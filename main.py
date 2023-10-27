@@ -6,6 +6,9 @@ import torchvision
 from torch import nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import requests
+from going_modular.going_modular import engine
+from going_modular.going_modular.predictions import pred_and_plot_image
 
 if __name__ == '__main__':
     # Set up paths of train and test data
@@ -120,10 +123,6 @@ if __name__ == '__main__':
             # 6. Make sure output shape has right order
             return x_flattened.permute(0, 2, 1)
 
-
-    # Set Seeds so that on every machine the same random image is selected
-    torch.manual_seed(42)
-
     # set patch size
     patch_size = 16
 
@@ -177,7 +176,7 @@ if __name__ == '__main__':
         """
 
         # Initialize class with hyperparameters from table 1
-        def __int__(
+        def __init__(
                 self,
                 embedding_dim: int = 768,
                 num_heads: int = 12,
@@ -197,15 +196,16 @@ if __name__ == '__main__':
             )
 
             # Create a forward method to pass data through the layers
-            def forward(self, x):
-                x = self.layer_norm(x)
-                attn_output, _ = self.multihead_attn(
-                    query=x,
-                    key=x,
-                    value=x,
-                    need_weights=False
-                )
-                return attn_output
+
+        def forward(self, x):
+            x = self.layer_norm(x)
+            attn_output, _ = self.multihead_attn(
+                query=x,
+                key=x,
+                value=x,
+                need_weights=False
+            )
+            return attn_output
 
 
     # Create MLP Block
@@ -355,7 +355,7 @@ if __name__ == '__main__':
             batch_size = x.shape[0]
 
             # Create class token embedding and expand it to match batch size
-            class_token = self.class_embedding.expand(batch_size, -1, 1)
+            class_token = self.class_embedding.expand(batch_size, -1, -1)
 
             # Create patch embedding
             x = self.patch_embedding(x)
@@ -376,3 +376,40 @@ if __name__ == '__main__':
             x = self.classifier(x[:, 0])
 
             return x
+
+
+    # Train the Model
+    vit = ViT(num_classes=len(class_names))
+
+    # Set up the optimizer to optimize ViT model parameters using hyperparameters
+    optimizer = torch.optim.Adam(
+        params=vit.parameters(),
+        lr=3e-3,
+        betas=(0.9, 0.999),
+        weight_decay=0.3
+    )
+
+    # Set up the loss function for multi class classification
+    loss_fn = torch.nn.CrossEntropyLoss()
+
+    # Set Seeds so that on every machine the same random image is selected
+    torch.manual_seed(42)
+
+    # Train the model and save the results to a dictionary
+    results = engine.train(
+        model=vit,
+        train_dataloader=train_dataloader,
+        test_dataloader=test_dataloader,
+        optimizer=optimizer,
+        loss_fn=loss_fn,
+        epochs=10,
+        device="cpu"
+    )
+
+    # Make Predictions
+    image_path = "data/test/A/A_401.jpg"
+    pred_and_plot_image(
+        model=vit,
+        image_path=image_path,
+        class_names=class_names
+    )
