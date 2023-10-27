@@ -48,7 +48,7 @@ if __name__ == '__main__':
         return train_dataloader, test_dataloader, class_names
 
 
-    IMG_SIZE = 288
+    IMG_SIZE = 224
 
     # Create transforms pipeline manually
     manual_transforms = transforms.Compose([
@@ -73,12 +73,7 @@ if __name__ == '__main__':
     # Get a batch of images
     image_batch, label_batch = next(iter(train_dataloader))
     image, label = image_batch[0], label_batch[0]
-    print(image.shape, label)
-    plt.imshow(image.permute(1, 2, 0))
-    plt.title(class_names[label])
-    plt.axis(False)
-    plt.show()
-
+    print(f"Image shape: {image.shape}, label: {label}")
 
     # 1. Create a class which subclasses the nn.Module
     class PatchEmbedding(nn.Module):
@@ -124,3 +119,54 @@ if __name__ == '__main__':
 
             # 6. Make sure output shape has right order
             return x_flattened.permute(0, 2, 1)
+
+
+    # Set Seeds so that on every machine the same random image is selected
+    torch.manual_seed(42)
+
+    # set patch size
+    patch_size = 16
+
+    # Print shape of original image tensor and get image dimensions
+    print(f"Image tensor shape: {image.shape}")  # This 'image' is from line number 75
+    height, width = image.shape[1], image.shape[2]
+
+    # Get image tensor and add batch dimension
+    x = image.unsqueeze(0)
+    print(f"Input image with batch dimension shape: {x.shape}")
+
+    # Create an instance of patch embedding layer
+    patch_embedding_layer = PatchEmbedding(
+        in_channels=3,
+        patch_size=patch_size,
+        embedding_dim=768
+    )
+
+    # Pass image through patch embedding layer
+    patch_embedding = patch_embedding_layer(x)
+    print(f"Patch Embedded Image Shape: {patch_embedding.shape}")
+
+    # Create class token embedding
+    batch_size = patch_embedding.shape[0]
+    embedding_dimension = patch_embedding.shape[-1]
+    class_token = nn.Parameter(
+        torch.ones(batch_size, 1, embedding_dimension),
+        requires_grad=True
+    )  # 'True' to make sure its learnable
+    print(f"Class token embedding shape: {class_token.shape}")
+
+    # Prepend class token embedding to patch embedding
+    patch_embedding_class_token = torch.cat((class_token, patch_embedding), dim=1)
+    print(f"Patch embedding with class token shape: {patch_embedding_class_token.shape}")
+
+    # Create position embedding
+    no_of_patches = int((height * width) / patch_size ** 2)
+    position_embedding = nn.Parameter(
+        torch.ones(1, no_of_patches + 1, embedding_dimension),
+        requires_grad=True)
+
+    # Add position embedding to patch embedding with class token
+    patch_and_position_embedding = patch_embedding_class_token + position_embedding
+    print(f"Patch and position embedding shape: {patch_and_position_embedding.shape}")
+
+    print(patch_embedding_class_token)
