@@ -168,5 +168,117 @@ if __name__ == '__main__':
     # Add position embedding to patch embedding with class token
     patch_and_position_embedding = patch_embedding_class_token + position_embedding
     print(f"Patch and position embedding shape: {patch_and_position_embedding.shape}")
-
     print(patch_embedding_class_token)
+
+
+    # Create Multi headed attention block
+    class MultiHeadedSelfAttentionBlock(nn.Module):
+        """
+        Creates a Multi headed self attention block (MSA Block)
+        """
+
+        # Initialize class with hyperparameters from table 1
+        def __int__(
+                self,
+                embedding_dim: int = 768,
+                num_heads: int = 12,
+                attn_dropout: float = 0
+        ):
+            super().__init__()
+
+            # create the normalization layer
+            self.layer_norm = nn.LayerNorm(normalized_shape=embedding_dim)
+
+            # create MSA layer
+            self.multihead_attn = nn.MultiheadAttention(
+                embed_dim=embedding_dim,
+                num_heads=num_heads,
+                dropout=attn_dropout,
+                batch_first=True
+            )
+
+            # Create a forward method to pass data through the layers
+            def forward(self, x):
+                x = self.layer_norm(x)
+                attn_output, _ = self.multihead_attn(
+                    query=x,
+                    key=x,
+                    value=x,
+                    need_weights=False
+                )
+                return attn_output
+
+
+    # Create MLP Block
+    class MLPBlock(nn.Module):
+        """
+        Creates a normalization layer with multilayer perceptron block (MLP block)
+        """
+
+        # initialize class parameters from table 1 & 3
+        def __init__(
+                self,
+                embedding_dim: int = 768,
+                mlp_size: int = 3072,
+                dropout: float = 0.1
+        ):
+            super().__init__()
+
+            # create the normalization layer
+            self.layer_norm = nn.LayerNorm(normalized_shape=embedding_dim)
+
+            # create MLP layers
+            self.mlp = nn.Sequential(
+                nn.Linear(in_features=embedding_dim, out_features=mlp_size),
+                nn.GELU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(in_features=mlp_size, out_features=embedding_dim),
+                nn.Dropout(p=dropout)
+            )
+
+        # Create a forward method to pass data through layers
+        def forward(self, x):
+            x = self.layer_norm(x)
+            x = self.mlp(x)
+            return x
+
+
+    # Creating a transformer encoder block by combining all the layers
+    class TransformerEncoderBlock(nn.Module):
+        """
+        Creates a transformer encoder block
+        """
+
+        # initialize class parameters from table 1 & 3
+        def __init__(
+                self,
+                embedding_dim: int = 768,
+                num_heads: int = 12,
+                mlp_size: int = 3072,
+                mlp_dropout: float = 0.1,
+                attn_dropout: float = 0
+        ):
+            super().__init__()
+
+            # Create MSA Block
+            self.msa_block = MultiHeadedSelfAttentionBlock(
+                embedding_dim=embedding_dim,
+                num_heads=num_heads,
+                attn_dropout=attn_dropout
+            )
+
+            # Create MLP MLPBlock
+            self.mlp_block = MLPBlock(
+                embedding_dim=embedding_dim,
+                mlp_size=mlp_size,
+                dropout=mlp_dropout
+            )
+
+        # Create a forward method to pass data through layers
+        def forward(self, x):
+            # create residual connection for msa block (add input to the output)
+            x = self.msa_block(x) + x
+
+            # create residual connection for msa block (add input to the output)
+            x = self.mlp_block(x) + x
+            return x
