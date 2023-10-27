@@ -97,7 +97,7 @@ if __name__ == '__main__':
                 patch_size: int = 16,
                 embedding_dim: int = 768
         ):
-            super.__init__()
+            super().__init__()
 
             # 3. Create a layer to turn image into patches
             self.patcher = nn.Conv2d(
